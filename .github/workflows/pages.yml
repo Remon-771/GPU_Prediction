@@ -1,34 +1,73 @@
+
 name: Deploy GhostGPU to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: github-pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    name: Build and Upload Website
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Configure Pages
+
+      - name: Verify Website Files
+        run: |
+          echo "Checking static directory..."
+
+          if [ ! -d "./static" ]; then
+            echo "ERROR: static directory not found!"
+            exit 1
+          fi
+
+          if [ ! -f "./static/index.html" ]; then
+            echo "ERROR: static/index.html not found!"
+            echo "Place your website entry file inside static/"
+            exit 1
+          fi
+
+          echo "Website files verified successfully."
+          ls -la ./static
+
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-      - name: Upload Pages artifact
+
+      - name: Upload GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: "./static"
+
+  deploy:
+    name: Deploy Website
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
